@@ -168,55 +168,100 @@ export class SwingDragPlugIn {
         let oldXPos: number;
         let oldYPos: number;
 
-        elementRef.draggable({
 
-            start: (e: JQueryEventObject) => {
-                dragging = true;
+        // Drag start handler
+        let onDragStartHandler = (e: JQueryEventObject, ui: JQueryUI.DraggableEventUIParams) => {
+            console.log("onDragStartHandler");
 
-                if (this.swingDragOptions.showShadow) {
-                    this.enableSwingDragShadow(elementRef);
-                }
+            dragging = true;
 
-                calculatedAngle = Math.abs(this.swingDragOptions.rotationAngleDeg);
-            },
-
-            drag: (e: JQueryEventObject, ui: any) => {
-
-                direction = this.getDirection(ui.position.left, oldXPos);
-
-                if (direction === Directions.left && calculatedAngle > 0) {
-                    calculatedAngle = calculatedAngle * -1;
-                } else if (direction === Directions.right && calculatedAngle < 0) {
-                    calculatedAngle = calculatedAngle * -1;
-                }
-
-                this.updateElementTransform(elementRef, calculatedAngle, this.swingDragOptions.pickUpScaleFactor);
-
-                oldDirection = direction;
-                oldXPos = ui.position.left;
-                oldYPos = ui.position.top;
-
-                // Check if the element is not being dragged anymore 
-                // and could therefore being set to back to zero rotation.
-                setTimeout(() => {
-                    if (oldXPos === ui.position.left && oldYPos === ui.position.top) {
-                        let tempScaleFactor = 1;
-                        if (dragging) {
-                            tempScaleFactor = this.swingDragOptions.pickUpScaleFactor;
-                        }
-                        this.updateElementTransform(elementRef, 0, tempScaleFactor);
-                    }
-                }, 100);
-            },
-
-            stop: (e: JQueryEventObject) => {
-                this.disableSwingDragShadow(elementRef);
-                this.updateElementTransform(elementRef, 0, 1);
-                oldDirection = Directions.undefined;
-                dragging = false;
+            if (this.swingDragOptions.showShadow) {
+                this.enableSwingDragShadow(elementRef);
             }
-        });
 
+            calculatedAngle = Math.abs(this.swingDragOptions.rotationAngleDeg);
+        };
+
+
+        // Drag handler
+        let onDragHandler = (e: JQueryEventObject, ui: JQueryUI.DraggableEventUIParams) => {
+
+            direction = this.getDirection(ui.position.left, oldXPos);
+
+            if (direction === Directions.left && calculatedAngle > 0) {
+                calculatedAngle = calculatedAngle * -1;
+            } else if (direction === Directions.right && calculatedAngle < 0) {
+                calculatedAngle = calculatedAngle * -1;
+            }
+
+            this.updateElementTransform(elementRef, calculatedAngle, this.swingDragOptions.pickUpScaleFactor);
+
+            oldDirection = direction;
+            oldXPos = ui.position.left;
+            oldYPos = ui.position.top;
+
+            // Check if the element is not being dragged anymore 
+            // and could therefore being set to back to zero rotation.
+            setTimeout(() => {
+                if (oldXPos === ui.position.left && oldYPos === ui.position.top) {
+                    let tempScaleFactor = 1;
+                    if (dragging) {
+                        tempScaleFactor = this.swingDragOptions.pickUpScaleFactor;
+                    }
+                    this.updateElementTransform(elementRef, 0, tempScaleFactor);
+                }
+            }, 50);
+        };
+
+
+        // Drag stop handler
+        let onDragStopHandler = (e: JQueryEventObject, ui: JQueryUI.DraggableEventUIParams) => {
+            this.disableSwingDragShadow(elementRef);
+            this.updateElementTransform(elementRef, 0, 1);
+            oldDirection = Directions.undefined;
+            dragging = false;
+        };
+
+        let draggableOptions: JQueryUI.DraggableOptions;
+
+        // Check whether the target element already have a draggable instance defined.
+        let draggableInstance: any = elementRef.draggable('instance');
+        if (draggableInstance && draggableInstance.options) {
+            // An instance was found, therefore also use this instance.
+
+            let startHandler = (e: JQueryEventObject, ui: JQueryUI.DraggableEventUIParams) => {
+                onDragStartHandler(e, ui);
+                draggableInstance.options.start(e, ui);
+            };
+
+            let dragHandler = (e: JQueryEventObject, ui: JQueryUI.DraggableEventUIParams) => {
+                onDragHandler(e, ui);
+                //draggableInstance.options.drag(e, ui);
+            };
+
+            let stopHandler = (e: JQueryEventObject, ui: JQueryUI.DraggableEventUIParams) => {
+                onDragStopHandler(e, ui);
+                //draggableInstance.options.stop(e, ui);
+            };
+
+            draggableOptions = {
+                start: startHandler,
+                drag: dragHandler,
+                stop: stopHandler,
+                distance: this.swingDragOptions.dragThreshold
+            }
+
+        } else {
+            // No instance was found, therefore create a new draggable instance.
+            draggableOptions = {
+                start: onDragStartHandler,
+                drag: onDragHandler,
+                stop: onDragStopHandler,
+                distance: this.swingDragOptions.dragThreshold
+            };
+        }
+
+        elementRef.draggable(draggableOptions);
     }
 
 
